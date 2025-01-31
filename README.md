@@ -32,23 +32,36 @@ defined in the rule. While rules are defined at the metalevel (in the MAL spec),
 queries may use selectors that apply on the instance model (for example, queries
 that search for assets with a fan-out larger than a number).
 
-Priority is a number lying in a predefined range (for example [0,1]). Higher
-priority means it is more probable for the agent being defined to select
-matching steps compared to steps with lower priority. Priority can also be
-termed preference. Priority needs to be translated to probabilities. For this,
-the softmax function can be used on the probabilities of the attack steps in the
-attack horizon.
+Priority is a real number. For our use case, we consider it to be a non-negative
+real number; priority 0 will have the agent ignore corresponding steps and
+higher priority means it is more probable for the agent to select matching
+steps. Priority can also be termed preference. Priority needs to be translated
+to probabilities. For this, the softmax function can be used on the
+probabilities of the attack steps in the attack horizon.
 
 The target step name gives the attack step in each of the returned assets
 matched by the query that will be assigned the related priority. The target
 attack step should exist in every asset returned.
 
-To better support rules, new selectors can be added. Also, new syntax to define
-prioritization may be needed. These will be backwards compatible MAL extensions.
+Further:
 
-In case of multiple rules assigning different priorities to the same attack step
-on an asset, priority should be resolved (see later section "Issues open for
-discussion").
+- To better support rules, new selectors can be added. Also, new syntax to
+  define prioritization may be needed. These will be backwards compatible MAL extensions.
+
+- In case of multiple rules assigning different priorities to the same attack
+  step on an asset, priority should be resolved. We consider using the max value
+  assigned by any rule as the resolution method.
+
+- Priority will be evaluated at runtime before attack graph state is passed to
+  the agent. This will enable selectors such as "TTC-spent/left",
+  "assets-with-%-of-attack-steps-compromised", etc.
+
+- Priority rules suffice to describe agent policy. But, to fully describe an
+  agent profile, objectives and resources should also be specified. For the
+  latter, TTCs in the MAL spec do not suffice as these are system-dependent
+  (e.g. throughput). For a proposal on defining agent skills see:
+  https://github.com/pontusj101/type_based_attack_step_selection/blob/main/Separating_attacker_skills_from_TTCs.pdf.
+
 
 ## 1st iteration
 
@@ -72,17 +85,16 @@ expressiveness.
   behaviors.
 
 - We will fit parameters derived from the real data to rule parameters using
-  log-likelihood or other methods.
+  log-likelihood or other methods. See:
+  https://github.com/pontusj101/type_based_attack_step_selection/blob/main/type-based%20attack%20step%20selection.pdf
 
 - The aspect of time should also be modeled.
 
 ## Ideas for next iterations
 
-- Imitation learning
-
 - Use of transformers for producing priorities
 
-- Use of RL
+- Agent inheritance
 
 ## Evaluation of the QR agent
 
@@ -99,53 +111,6 @@ real data.
 
 - The exact syntax should be defined.
 
-- Should priority be calculated once during model loading and used throughout
-  the simulation as is?
-
-- Related to the above, should there be selectors based on the state of the
-  attack graph? For example, should a selector exist that filters assets based
-  on percentage of compromise (how many of its steps are compromised)? Or based
-  on the TTC left for attack steps? Etc.
-
-- Rules in the MAL spec as described above will work in the relational domain
-  assigning priorities to step based on the structure of the attack graph,
-  metadata about the attack step (e.g. what asset they belong to) and,
-  potentially, attack graph state. There is another side to an attacker agent
-  that is not captured in the above formulation that relates to agent resources
-  and objectives. Should such aspects be modeled as well?
-
-- What does it mean for a step to have priority 0? Should it be possible to
-  completely ignore attack steps?
-
-- In the case of conflicting rules that assign different priorities to the same
-  attack step, resolution will be based on how we interpret rules.
-
-  - If rules are viewed as a straightforward prioritization method assigning
-    priorities to step that the agent needs to respect, a fitting resolution may
-    be to keep only the last defined priority for a step or the maximum
-    priority.
-
-  - If rules are seen as describing agent preferences or evaluations of
-    importance for each step, a resolution may be preferable that aggregates the
-    multiple priorities into one, using the maximum, a weighted average or other
-    method.
-
-  - The selected resolution should properly address edge cases such as a step
-    receiving a >0 priority and a 0 priority (potentially meaning ignore).
-    Should the step be ignored indeed, meaning that the ignore rule is important
-    and should not be violated?
-
-  - Should it be possible to combine rules? For example, can a new rule
-    reference another rule, use the latter's assigned priority and produce a new
-    priority based on some calculation?
-
-  - If a rule references asset types some of which do not exist, should it be
-    dropped completely or should it depend on the set logic?
-
-  - How should defenses affect priority? For example, if a defense is an enabled
-    in an asset, should the agent avoid other steps in the affected asset?
-
-## Resources
-
-[Proposal for fitting
-parameters](https://github.com/pontusj101/type_based_attack_step_selection/blob/main/type-based%20attack%20step%20selection.pdf)
+- Should it be possible to combine rules? For example, can a new rule reference
+  another rule, use the latter's assigned priority and produce a new priority
+  based on some calculation?
